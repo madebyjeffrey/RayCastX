@@ -3,16 +3,13 @@ package RayCastX
 import breeze.linalg._
 import breeze.linalg.LinearAlgebra.{cross}
 import breeze.numerics._
-import scala.math.{sqrt, acos}
+import scala.math.{sqrt, acos, pow}
 
 
-abstract class Renderable() {}
+trait Renderable
 
-case class Ray(origin : DenseVector[Double], direction : DenseVector[Double]) {
-
-}
-
-case class Intersection(at : DenseVector[Double], theta : Double) {}
+case class Ray(origin : DenseVector[Double], direction : DenseVector[Double])
+case class Intersection(at : DenseVector[Double], theta : Double)
 
 trait IntersectionTest {
   def intersection(r : Ray) : Option[Intersection]
@@ -34,7 +31,7 @@ case class Sphere(origin : DenseVector[Double], radius : Double) extends Rendera
 
     val discriminant = dec*dec - length_d * (length_ce - radius * radius)
 
-    def intersection = {
+    lazy val intersection = {
       // might be exactly one value (t1 == t2)
       val t1 = (-dec + sqrt(discriminant)) / length_d
       val t2 = (-dec - sqrt(discriminant)) / length_d
@@ -62,6 +59,36 @@ case class Sphere(origin : DenseVector[Double], radius : Double) extends Rendera
       Option(intersection)
     else
       None
+  }
+}
+
+case class Sphere2(origin : DenseVector[Double], radius : Double) extends Renderable with IntersectionTest {
+  def intersection(r : Ray) : Option[Intersection] = {
+    val discriminant = pow(r.direction dot (r.origin - origin), 2) - ((r.origin - origin) dot (r.origin - origin)) + pow(radius, 2)
+
+    lazy val distance1 = -(r.direction dot (r.origin - origin)) + sqrt(discriminant)
+    lazy val distance2 = -(r.direction dot (r.origin - origin)) - sqrt(discriminant)
+
+    lazy val smallest_distance = if (distance1 < distance2) distance1 else distance2
+
+
+    // position on the line r
+    def position(d : Double) = r.origin + r.direction * d
+
+    // takes the position used, and gives the theta
+    def theta(p : DenseVector[Double]) : Double = {
+      val vector = r.origin - p
+      val normal = (p - origin) / radius
+      acos(vector dot normal) / (vector.norm(2) * normal.norm(2))
+    }
+
+    lazy val closest_position = position(smallest_distance)
+
+    if (discriminant < 0)
+      None
+    else
+      Some(Intersection(closest_position, theta(closest_position)))
+
   }
 }
 
